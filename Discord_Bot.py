@@ -1,23 +1,32 @@
 import discord
+from discord.ext import commands
 from ec2_metadata import ec2_metadata
 import os
 
-# Initialize the bot
+# Intents setup (required for some events like member joins)
 intents = discord.Intents.default()
-client = discord.Client(intents=intents)
+intents.messages = True  # For reading messages
+intents.message_content = True  # To access message content
 
+# Bot Setup
+bot = commands.Bot(command_prefix="!", intents=intents))
+
+# Event: Bot ready
 @client.event
 async def on_ready():
-    print(f'Logged in as {client.user}')
+    print(f"Bot is online as {bot.user}")
     print("Bot is ready and listening for commands.")
 
+# Command: Ping
+@bot.command()
+async def ping(ctx):
+    await ctx.send("Pong!")
+
+# Event: On message
 @client.event
 async def on_message(message):
     if message.author == client.user:
-        return  # Ignore messages from the bot itself
-
-    try:
-        # Respond to "hello world"
+        return 
         if message.content.lower() == "hello world":
             await message.channel.send("Hello!")
 
@@ -52,3 +61,6 @@ if not token:
     print("Error: Discord bot token not found in environment variables.")
 else:
     client.run(token)
+
+# Run the bot
+bot.run("YOUR_DISCORD_BOT_TOKEN")
