@@ -1,50 +1,36 @@
-import discord
 import os
+import logging
+from discord.ext import commands
 from ec2_metadata import ec2_metadata
 
-# Get the bot token from environment variables
+# Enable logging for better debugging and monitoring
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Fetch the bot token from environment variables
 TOKEN = os.getenv('TOKEN')
 if not TOKEN:
     raise ValueError("Error: TOKEN environment variable not set.")
 
-# Configure Discord intents to listen for messages
+# Initialize the bot with command prefix
 intents = discord.Intents.default()
 intents.messages = True
-client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Event: Bot is ready
-@client.event
+@bot.event
 async def on_ready():
-    print(f"Bot is online as {client.user}")
+    logger.info(f"Bot is online as {bot.user}")
+    print(f"Bot is online as {bot.user}")
 
-# Function: Handle commands
-async def handle_commands(message):
-    command = message.content.lower()
+# Command: "hello" (simple greeting)
+@bot.command(name='hello')
+async def hello(ctx):
+    await ctx.send('Hello! How can I assist you?')
 
-    # Command: "hello"
-    if command == 'hello':
-        await message.channel.send('Hello! How can I assist you?')
-
-    # Command: "!serverinfo"
-    elif command == '!serverinfo':
-        await send_ec2_metadata(message)
-
-    # Command: "!ping"
-    elif command == '!ping':
-        await message.channel.send('Pong!')
-
-    # Command: "!uptime"
-    elif command == '!uptime':
-        await send_ec2_uptime(message)
-
-    # Unknown command
-    else:
-        await message.channel.send(
-            "Sorry, I didn't understand that command. Try `hello`, `!serverinfo`, `!ping`, or `!uptime`."
-        )
-
-# Function: Send EC2 Metadata
-async def send_ec2_metadata(message):
+# Command: "serverinfo" (fetch EC2 metadata)
+@bot.command(name='serverinfo')
+async def serverinfo(ctx):
     try:
         region = ec2_metadata.region
         availability_zone = ec2_metadata.availability_zone
@@ -57,12 +43,20 @@ async def send_ec2_metadata(message):
             f"Public IPv4: {public_ipv4}"
         )
     except Exception as e:
-        response = f"Error retrieving EC2 metadata: {e}"
+        logger.error(f"Error fetching EC2 metadata: {e}")
+        response = "Unable to retrieve EC2 metadata at the moment."
 
-    await message.channel.send(response)
+    await ctx.send(response)
 
-# Function: Send EC2 Uptime
-async def send_ec2_uptime(message):
+# Command: "ping" (latency test)
+@bot.command(name='ping')
+async def ping(ctx):
+    latency = round(bot.latency * 1000)  # Latency in milliseconds
+    await ctx.send(f"Pong! 🏓 Latency: {latency}ms")
+
+# Command: "uptime" (fetch EC2 uptime)
+@bot.command(name='uptime')
+async def uptime(ctx):
     try:
         with open('/proc/uptime', 'r') as f:
             uptime_seconds = float(f.readline().split()[0])
@@ -74,22 +68,24 @@ async def send_ec2_uptime(message):
                 f"{int(minutes)} minutes, {int(seconds)} seconds"
             )
     except Exception as e:
-        response = f"Error retrieving uptime: {e}"
+        logger.error(f"Error fetching uptime: {e}")
+        response = "Unable to retrieve uptime information at the moment."
 
-    await message.channel.send(response)
+    await ctx.send(response)
 
-# Event: On message
-@client.event
-async def on_message(message):
-    # Ignore bot's own messages
-    if message.author == client.user:
-        return
-
-    # Process commands
-    await handle_commands(message)
+# Error Handler: Catch command errors
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("Invalid command. Try `!hello`, `!serverinfo`, `!ping`, or `!uptime`.")
+    else:
+        logger.error(f"An error occurred: {error}")
+        await ctx.send("An error occurred while processing your request.")
 
 # Run the bot
-try:
-    client.run(TOKEN)
-except Exception as e:
-    print(f"Error starting the bot: {e}")
+if __name__ == "__main__":
+    try:
+        bot.run(TOKEN)
+    except Exception as e:
+        logger.critical(f"Critical error starting the bot: {e}")
+        print(f"Critical error starting the bot: {e}")
