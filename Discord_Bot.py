@@ -18,26 +18,26 @@ async def on_ready():
     print(f"Bot logged in as {client.user}")
 
 # Centralized command handler
-async def handle_command(command):
-    """Handles known commands and returns the appropriate response."""
-    if command == "hello":
+async def handle_command(message):
+    if message.content.lower() == "hello":
         return "Hello! How can I assist you?"
-
-    elif command == "!serverinfo":
+    
+    elif message.content.lower() == "!serverinfo":
         try:
-            return (
+            server_info = (
                 "**EC2 Instance Metadata:**\n"
                 f"Region: {ec2_metadata.region}\n"
                 f"Availability Zone: {ec2_metadata.availability_zone}\n"
                 f"Public IPv4: {ec2_metadata.public_ipv4}"
             )
+            return server_info
         except Exception as e:
             return f"An error occurred while retrieving EC2 metadata: {e}"
 
-    elif command == "!ping":
+    elif message.content.lower() == "!ping":
         return "Pong!"
 
-    elif command == "!uptime":
+    elif message.content.lower() == "!uptime":
         try:
             with open('/proc/uptime', 'r') as f:
                 uptime_seconds = float(f.readline().split()[0])
@@ -55,7 +55,8 @@ async def on_message(message):
     if message.author == client.user:
         return  # Ignore bot's own messages
 
-    response = await handle_command(message.content.lower())
+    # Handle commands and send the response
+    response = await handle_command(message)
     await message.channel.send(response)
 
 # Run the bot
